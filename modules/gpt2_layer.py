@@ -58,15 +58,16 @@ class GPT2Layer(nn.Module):
     
     # Pre-LN
     ffn_norm = self.out_layer_norm(hidden_states)
-    ffn_output = self.interm_dense(ffn_norm)
-    ffn_output = self.interm_af(ffn_output)
+    ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
     ffn_output = self.out_dense(ffn_output)
+    # direct connect
     hidden_states = self.add(
-        input = hidden_states,
-        output = ffn_output,
-        dense_layer = self.ffn_proj,
-        dropout = self.out_dropout
+        input=hidden_states,
+        output=ffn_output,
+        dense_layer=lambda x: x,
+        dropout=self.out_dropout
     )
+
     
     return hidden_states
 
