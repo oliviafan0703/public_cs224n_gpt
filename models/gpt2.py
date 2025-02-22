@@ -62,6 +62,7 @@ class GPT2Model(GPTPreTrainedModel):
     ### TODO: Use pos_ids to get position embedding from self.pos_embedding into pos_embeds.
     ###       Then, add two embeddings together; then apply dropout and return.
     ### YOUR CODE HERE
+    pos_embeds = self.pos_embedding(pos_ids)
     combined_embeds = word_embeds + pos_embeds
     embedding_output = self.embed_dropout(combined_embeds)
 
