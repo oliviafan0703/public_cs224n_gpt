@@ -39,11 +39,16 @@ class CausalSelfAttention(nn.Module):
     attention_scores = attention_scores / (self.attention_head_size ** 0.5)
     
     # Apply musk
-    attention_scores = attention_scores + attention_mask
+    seq_len = query.size(-2)
+    causal_mask = torch.triu(torch.ones((1, 1, seq_len, seq_len), device=attention_mask.device), diagonal=1).bool()
+    causal_mask = causal_mask.to(dtype=attention_scores.dtype)
+    causal_mask = causal_mask * -1e4
+    combined_mask = attention_mask + causal_mask
+    attention_scores = attention_scores + combined_mask
     
     # Compute attention prob and apply dropout
+    attention_scores = self.dropout(attention_scores)
     attention_probs = torch.softmax(attention_scores, dim=-1)
-    attention_probs = self.dropout(attention_probs)
     
     # Use attention prob to with value
     context = torch.matmul(attention_probs, value)
