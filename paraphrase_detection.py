@@ -67,13 +67,19 @@ class ParaphraseGPT(nn.Module):
 
     So you want to find the prediction for the next token at the end of this sentence. Optimistically, it will be the
     token "yes" (byte pair encoding index of 8505) for examples that are paraphrases or "no" (byte pair encoding index
-     of 3919) for examples that are not paraphrases.
+    of 3919) for examples that are not paraphrases.
     """
 
     'Takes a batch of sentences and produces embeddings for them.'
     ### YOUR CODE HERE
+    gpt_output = self.gpt(input_ids= = nput_ids, attention_mask = attention_mask)
+        
+    last_hidden_state = gpt_output.last_hidden_state
+        
+    logits = self.paraphrase_detection_head(last_hidden_state[:, -1, :]) 
+        
+    return logits
     raise NotImplementedError
-
 
 
 def save_model(model, optimizer, args, filepath):
