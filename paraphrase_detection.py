@@ -89,7 +89,7 @@ class ParaphraseGPT(nn.Module):
     ### YOUR CODE HERE
     gpt_output = self.gpt(input_ids = input_ids, attention_mask = attention_mask)
         
-    last_hidden_state = gpt_output[0] 
+    last_hidden_state = gpt_output['last_hidden_state']
         
     logits = self.paraphrase_detection_head(last_hidden_state[:, -1, :]) 
         
@@ -144,6 +144,9 @@ def train(args):
       b_ids = b_ids.to(device)
       b_mask = b_mask.to(device)
       labels = labels.to(device)
+
+      # The labels are 1 for paraphrases and 0 for non-paraphrases.
+      labels = torch.where(labels == 8505, torch.tensor(1, device=labels.device), torch.tensor(0, device=labels.device))
 
       # Compute the loss, gradients, and update the model's parameters.
       optimizer.zero_grad()
