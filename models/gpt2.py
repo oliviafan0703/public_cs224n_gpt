@@ -22,7 +22,8 @@ class GPT2Model(GPTPreTrainedModel):
     super().__init__(config)
     self.config = config
     self.use_lora = self.config.use_lora
-
+    self.use_reft = self.config.use_reft  # Add ReFT flag
+    
     # Embedding layers.
     self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
     self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -85,7 +86,17 @@ class GPT2Model(GPTPreTrainedModel):
       # Feed the encoding from the last bert_layer to the next.
       hidden_states = layer_module(hidden_states, extended_attention_mask)
 
+      # Apply ReFT if enabled
+      if self.use_reft:
+          hidden_states = self.apply_reft(hidden_states)
+        
     return hidden_states
+
+  def apply_reft(self, hidden_states):
+    # Apply ReFT intervention on hidden states if enabled
+    task_specific_projection = nn.Linear(hidden_states.size(-1), hidden_states.size(-1)) 
+    fine_tuned_hidden_states = task_specific_projection(hidden_states)
+    return fine_tuned_hidden_states
 
   def forward(self, input_ids, attention_mask):
     """
