@@ -47,7 +47,7 @@ class AdamW(Optimizer):
 
                 ### TODO: Complete the implementation of AdamW here, reading and saving
                 ###       your state in the `state` dictionary above.
-                ###       The hyperparameters can be read from the `group` dictionary
+                ###        The hyperparameters can be read from the `group` dictionary
                 ###       (they are lr, betas, eps, weight_decay, as saved in the constructor).
                 ###
                 ###       To complete this implementation:
