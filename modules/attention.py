@@ -32,7 +32,7 @@ class CausalSelfAttention(nn.Module):
 
     # Check if ReFT should be used
     self.use_reft = config.use_reft
-    
+
     # Initialize the linear transformation layers for key, value, query.
     if config.use_lora:
       self.query = LoRALayer(config.hidden_size, self.all_head_size)
@@ -92,7 +92,7 @@ class CausalSelfAttention(nn.Module):
 
     # Apply ReFT here if enabled
     context = self.apply_reft(context)
-    
+
     return context
 
   def forward(self, hidden_states, attention_mask):

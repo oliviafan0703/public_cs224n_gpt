@@ -62,10 +62,10 @@ class GPT2Layer(nn.Module):
         dense_layer = self.attention_dense,
         dropout = self.attention_dropout
     )
-
+    
     # Apply ReFT after attention if enabled
     hidden_states = self.apply_reft(hidden_states)
-    
+
     # Pre-LN
     ffn_norm = self.out_layer_norm(hidden_states)
     ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
@@ -80,6 +80,6 @@ class GPT2Layer(nn.Module):
 
     # Apply ReFT after feed-forward if enabled
     hidden_states = self.apply_reft(hidden_states)
-    
+
     return hidden_states
 

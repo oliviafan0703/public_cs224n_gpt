@@ -23,7 +23,7 @@ class GPT2Model(GPTPreTrainedModel):
     self.config = config
     self.use_lora = self.config.use_lora
     self.use_reft = self.config.use_reft  # Add ReFT flag
-    
+
     # Embedding layers.
     self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
     self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -89,7 +89,7 @@ class GPT2Model(GPTPreTrainedModel):
       # Apply ReFT if enabled
       if self.use_reft:
           hidden_states = self.apply_reft(hidden_states)
-        
+
     return hidden_states
 
   def apply_reft(self, hidden_states):
