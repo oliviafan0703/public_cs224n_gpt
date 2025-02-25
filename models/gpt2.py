@@ -121,11 +121,11 @@ class GPT2Model(GPTPreTrainedModel):
 
 
   @classmethod
-  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False):
+  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False, use_reft=False):
     gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
     our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l, num_attention_heads=num_heads,
                                      intermediate_size=d*3,
-                                     use_lora=use_lora)).eval()
+                                     use_lora=use_lora, use_reft=use_reft)).eval()
 
     # Load word and positional embeddings.
     our_model.word_embedding.load_state_dict(gpt_model.wte.state_dict())
@@ -158,6 +158,13 @@ class GPT2Model(GPTPreTrainedModel):
       # Remap second layer norm weights.
       l.out_layer_norm.weight.data = gpt_model.state_dict()[f'h.{i}.ln_2.weight']
       l.out_layer_norm.bias.data = gpt_model.state_dict()[f'h.{i}.ln_2.bias']
+
+      # Init the values for ReFT if defined
+      if use_reft:
+        nn.init.normal_(l.reft_attn.A, mean=0, std=0.02)
+        nn.init.zeros_(l.reft_attn.B)
+        nn.init.normal_(l.reft_ffn.A, mean=0, std=0.02)
+        nn.init.zeros_(l.reft_ffn.B)
 
     # Remap the final layer norm values.
     our_model.final_layer_norm.weight.data = gpt_model.state_dict()['ln_f.weight']

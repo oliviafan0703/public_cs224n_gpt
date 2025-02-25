@@ -1,12 +1,26 @@
 from torch import nn
-
+import torch
 import torch.nn.functional as F
 
 from modules.attention import CausalSelfAttention
 
+class ReFTBlock(nn.Module):
+    def __init__(self, hidden_size, rank=8, note="none"):
+        super().__init__()
+        self.note = note
+        self.rank = rank
+        self.A = nn.Parameter(torch.randn(hidden_size, rank))
+        self.B = nn.Parameter(torch.zeros(rank, hidden_size))
+        self.scaling = 1.0 / rank ** 0.5
+
+    def forward(self, x):
+        delta = torch.matmul(torch.matmul(x, self.A), self.B) * self.scaling
+        return x + delta
+
 class GPT2Layer(nn.Module):
   def __init__(self, config):
     super().__init__()
+    self.config = config
     # Multi-head attention.
     self.self_attention = CausalSelfAttention(config)
     # Add-norm for multi-head attention.
@@ -20,6 +34,10 @@ class GPT2Layer(nn.Module):
     self.out_dense = nn.Linear(config.intermediate_size, config.hidden_size)
     self.out_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
     self.out_dropout = nn.Dropout(config.hidden_dropout_prob)
+    # reft layers
+    if config.use_reft:
+      self.reft_attn = ReFTBlock(config.hidden_size, note="attn_out")
+      self.reft_ffn = ReFTBlock(config.hidden_size, note="ffn_out")
 
   def add(self, input, output, dense_layer, dropout):
     """
@@ -47,6 +65,8 @@ class GPT2Layer(nn.Module):
     attn_norm = self.attention_layer_norm(hidden_states)
     # Self attention compuation
     attn_output = self.self_attention(attn_norm, attention_mask)
+    if self.config.use_reft:
+      attn_output = self.reft_attn(attn_output)
     # Apply add function
     hidden_states = self.add(
         input = hidden_states,
@@ -59,6 +79,8 @@ class GPT2Layer(nn.Module):
     ffn_norm = self.out_layer_norm(hidden_states)
     ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
     ffn_output = self.out_dense(ffn_output)
+    if self.config.use_reft:
+      ffn_output = self.reft_ffn(ffn_output)
     # direct connect
     hidden_states = self.add(
         input=hidden_states,
