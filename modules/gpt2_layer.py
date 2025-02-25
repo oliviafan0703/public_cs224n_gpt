@@ -33,14 +33,6 @@ class GPT2Layer(nn.Module):
     dropped = dropout(projected)
     return input + dropped
 
-  def apply_reft(self, hidden_states):
-        # Apply task-specific projection for ReFT if enabled
-        if self.use_reft:
-            task_specific_projection = nn.Linear(hidden_states.size(-1), hidden_states.size(-1))  
-            fine_tuned_hidden_states = task_specific_projection(hidden_states)
-            return fine_tuned_hidden_states
-        return hidden_states 
-
   def forward(self, hidden_states, attention_mask):
     """
     TODO: Implement the forward pass. Some key points to consider:
@@ -63,9 +55,6 @@ class GPT2Layer(nn.Module):
         dropout = self.attention_dropout
     )
     
-    # Apply ReFT after attention if enabled
-    hidden_states = self.apply_reft(hidden_states)
-
     # Pre-LN
     ffn_norm = self.out_layer_norm(hidden_states)
     ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
@@ -77,9 +66,6 @@ class GPT2Layer(nn.Module):
         dense_layer=lambda x: x,
         dropout=self.out_dropout
     )
-
-    # Apply ReFT after feed-forward if enabled
-    hidden_states = self.apply_reft(hidden_states)
 
     return hidden_states
 
