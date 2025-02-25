@@ -17,6 +17,7 @@ import torch
 
 import numpy as np
 import torch.nn.functional as F
+from modules.attention import LoRALayer
 
 from torch import nn
 from torch.utils.data import DataLoader
@@ -50,12 +51,26 @@ class ParaphraseGPT(nn.Module):
 
   def __init__(self, args):
     super().__init__()
-    self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
+    if args.use_lora:
+      self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True)
+      # Freeze pretained parameters
+      for param in self.gpt.parameters():
+        param.requires_grad = False
+      # Unfreeze Lora parameters
+      for name, param in self.gpt.named_parameters():
+        if "A" in name or "B" in name:
+          param.requires_grad = True
+      # Init parameters
+      for module in self.gpt.modules():
+        if isinstance(module, LoRALayer):
+          nn.init.normal_(module.A, mean=0, std=0.02)
+          nn.init.zeros_(module.B)
+    else:
+        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
+        # By default, fine-tune the full model.
+        for param in self.gpt.parameters():
+          param.requires_grad = True
     self.paraphrase_detection_head = nn.Linear(args.d, 2)  # Paraphrase detection has two outputs: 1 (yes) or 0 (no).
-
-    # By default, fine-tune the full model.
-    for param in self.gpt.parameters():
-      param.requires_grad = True
 
   def forward(self, input_ids, attention_mask):
     """
@@ -201,6 +216,7 @@ def get_args():
 
   parser.add_argument("--seed", type=int, default=11711)
   parser.add_argument("--epochs", type=int, default=10)
+  parser.add_argument("--use_lora", action='store_true')
   parser.add_argument("--use_gpu", action='store_true')
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
@@ -210,6 +226,7 @@ def get_args():
                       choices=['gpt2', 'gpt2-medium', 'gpt2-large'], default='gpt2')
 
   args = parser.parse_args()
+  print(f'use_lora: {args.use_lora}')
   return args
 
 
