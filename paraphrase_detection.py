@@ -132,12 +132,13 @@ def train(args):
 
       # The labels are 1 for paraphrases and 0 for non-paraphrases.
       labels = torch.where(labels == 8505, torch.tensor(1, device=labels.device), torch.tensor(0, device=labels.device))
+      mapped_labels = (labels == 8505).long() 
 
       # Compute the loss, gradients, and update the model's parameters.
       optimizer.zero_grad()
       logits = model(b_ids, b_mask)
       preds = torch.argmax(logits, dim=1)
-      loss = F.cross_entropy(logits, labels, reduction='mean')
+      loss = F.cross_entropy(logits, mapped_labels, reduction='mean')
       loss.backward()
       optimizer.step()
 

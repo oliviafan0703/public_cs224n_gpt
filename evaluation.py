@@ -33,8 +33,10 @@ def model_eval_paraphrase(dataloader, model, device):
     logits = model(b_ids, b_mask).cpu().numpy()
     preds = np.argmax(logits, axis=1).flatten()
 
+    mapped_preds = (preds == 8505).long() 
+
     y_true.extend(labels)
-    y_pred.extend(preds)
+    y_pred.extend(mapped_preds)
     sent_ids.extend(b_sent_ids)
 
   f1 = f1_score(y_true, y_pred, average='macro')
