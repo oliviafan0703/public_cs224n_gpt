@@ -2,14 +2,16 @@ import torch
 
 from einops import rearrange
 from torch import nn
+import torch.nn.functional as F
 
 class LoRALayer(nn.Module):
   def __init__(self, in_dim, out_dim, rank=8, alpha=16):
     super().__init__()
     self.rank = rank
     self.alpha = alpha
-    # FROZEN: Original weight
-    self.W = nn.Parameter(torch.zeros(out_dim, in_dim), requires_grad=False)
+    # FROZEN: Original weight and bias
+    self.weight = nn.Parameter(torch.zeros(out_dim, in_dim), requires_grad=False)
+    self.bias = nn.Parameter(torch.zeros(out_dim), requires_grad=False)
     # TRAINABLE: LoRA parameters
     self.A = nn.Parameter(torch.randn(out_dim, rank))  # Low-rank matrix A
     self.B = nn.Parameter(torch.zeros(rank, in_dim))  # Low-rank matrix B
@@ -18,7 +20,7 @@ class LoRALayer(nn.Module):
 
   def forward(self, x):
     # Output = Wx + (B*A)x * scaling
-    return torch.nn.linear(x, self.W + (self.A @ self.B).T * self.scaling)
+    return F.linear(x, self.weight + (self.A @ self.B).T * self.scaling, self.bias)
 
 class CausalSelfAttention(nn.Module):
   def __init__(self, config):
