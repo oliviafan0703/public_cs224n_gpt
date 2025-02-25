@@ -21,7 +21,9 @@ class GPT2Model(GPTPreTrainedModel):
   def __init__(self, config):
     super().__init__(config)
     self.config = config
-
+    self.use_lora = self.config.use_lora
+    self.use_reft = self.config.use_reft  # Add ReFT flag
+    
     # Embedding layers.
     self.word_embedding = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
     self.pos_embedding = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -84,7 +86,17 @@ class GPT2Model(GPTPreTrainedModel):
       # Feed the encoding from the last bert_layer to the next.
       hidden_states = layer_module(hidden_states, extended_attention_mask)
 
+      # Apply ReFT if enabled
+      if self.use_reft:
+          hidden_states = self.apply_reft(hidden_states)
+        
     return hidden_states
+
+  def apply_reft(self, hidden_states):
+    # Apply ReFT intervention on hidden states if enabled
+    task_specific_projection = nn.Linear(hidden_states.size(-1), hidden_states.size(-1)) 
+    fine_tuned_hidden_states = task_specific_projection(hidden_states)
+    return fine_tuned_hidden_states
 
   def forward(self, input_ids, attention_mask):
     """
@@ -119,10 +131,11 @@ class GPT2Model(GPTPreTrainedModel):
 
 
   @classmethod
-  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12):
+  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False):
     gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
-    our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l,num_attention_heads=num_heads,
-                                     intermediate_size=d*3)).eval()
+    our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l, num_attention_heads=num_heads,
+                                     intermediate_size=d*3,
+                                     use_lora=use_lora)).eval()
 
     # Load word and positional embeddings.
     our_model.word_embedding.load_state_dict(gpt_model.wte.state_dict())

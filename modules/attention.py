@@ -2,7 +2,25 @@ import torch
 
 from einops import rearrange
 from torch import nn
+import torch.nn.functional as F
 
+class LoRALayer(nn.Module):
+  def __init__(self, in_dim, out_dim, rank=8, alpha=16):
+    super().__init__()
+    self.rank = rank
+    self.alpha = alpha
+    # FROZEN: Original weight and bias
+    self.weight = nn.Parameter(torch.zeros(out_dim, in_dim), requires_grad=False)
+    self.bias = nn.Parameter(torch.zeros(out_dim), requires_grad=False)
+    # TRAINABLE: LoRA parameters
+    self.A = nn.Parameter(torch.randn(out_dim, rank))  # Low-rank matrix A
+    self.B = nn.Parameter(torch.zeros(rank, in_dim))  # Low-rank matrix B
+    # Scaling factor
+    self.scaling = alpha / rank
+
+  def forward(self, x):
+    # Output = Wx + (B*A)x * scaling
+    return F.linear(x, self.weight + (self.A @ self.B).T * self.scaling, self.bias)
 
 class CausalSelfAttention(nn.Module):
   def __init__(self, config):
@@ -12,14 +30,30 @@ class CausalSelfAttention(nn.Module):
     self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
     self.all_head_size = self.num_attention_heads * self.attention_head_size
 
+    # Check if ReFT should be used
+    self.use_reft = config.use_reft
+    
     # Initialize the linear transformation layers for key, value, query.
-    self.query = nn.Linear(config.hidden_size, self.all_head_size)
-    self.key = nn.Linear(config.hidden_size, self.all_head_size)
-    self.value = nn.Linear(config.hidden_size, self.all_head_size)
+    if config.use_lora:
+      self.query = LoRALayer(config.hidden_size, self.all_head_size)
+      self.key = LoRALayer(config.hidden_size, self.all_head_size)
+      self.value = LoRALayer(config.hidden_size, self.all_head_size)
+    else:
+      self.query = nn.Linear(config.hidden_size, self.all_head_size)
+      self.key = nn.Linear(config.hidden_size, self.all_head_size)
+      self.value = nn.Linear(config.hidden_size, self.all_head_size)
     # This dropout is applied to normalized attention scores following the original
     # implementation of transformer. Although it is a bit unusual, we empirically
     # observe that it yields better performance.
     self.dropout = nn.Dropout(config.attention_probs_dropout_prob)
+
+  def apply_reft(self, context):
+        # Apply task-specific projection for ReFT if enabled
+        if self.use_reft:
+            task_specific_projection = nn.Linear(context.size(-1), context.size(-1))  
+            fine_tuned_context = task_specific_projection(context)
+            return fine_tuned_context
+        return context  
 
   def transform(self, x, linear_layer):
     # The corresponding linear_layer of k, v, q are used to project the hidden_state (x).
@@ -55,6 +89,10 @@ class CausalSelfAttention(nn.Module):
     
     # rearrange to get the target output dim
     context = rearrange(context, "b h t d -> b t (h d)")
+
+    # Apply ReFT here if enabled
+    context = self.apply_reft(context)
+    
     return context
 
   def forward(self, hidden_states, attention_mask):
