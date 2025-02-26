@@ -55,7 +55,7 @@ class ParaphraseGPT(nn.Module):
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True)
       # Freeze pretained parameters
       for param in self.gpt.parameters():
-        param.requires_grad = False
+            param.requires_grad = False
       # Unfreeze Lora parameters
       for name, param in self.gpt.named_parameters():
         if "lora_A" in name or "lora_B" in name:
@@ -162,15 +162,20 @@ def train(args):
   model = model.to(device)
 
   lr = args.lr
-  optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
+  # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
+  from torch import optim
+  optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-6)
   best_dev_acc = 0
+
+  correct_predictions = 0 
+  total_predictions = 0
 
   # Run for the specified number of epochs.
   for epoch in range(args.epochs):
     model.train()
     train_loss = 0
     num_batches = 0
-    for batch in tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE):
+    for i, batch in enumerate(tqdm(para_train_dataloader, desc=f'train-{epoch}', disable=TQDM_DISABLE)):
       # Get the input and move it to the gpu (I do not recommend training this model on CPU).
       b_ids, b_mask, labels = batch['token_ids'], batch['attention_mask'], batch['labels'].flatten()
       b_ids = b_ids.to(device)
@@ -191,6 +196,15 @@ def train(args):
 
       train_loss += loss.item()
       num_batches += 1
+
+      correct_predictions += (preds == mapped_labels).sum().item()
+      total_predictions += mapped_labels.size(0)
+
+      # Print accuracy every 1000 batches
+      if (i + 1) % 1000 == 0:
+        acc = correct_predictions / total_predictions
+        print(f"Epoch {epoch}, Batch {i+1}: Train Accuracy: {acc:.4f}")
+
 
     train_loss = train_loss / num_batches
 
