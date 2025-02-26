@@ -59,6 +59,7 @@ class ParaphraseGPT(nn.Module):
       # Unfreeze Lora parameters
       for name, param in self.gpt.named_parameters():
         if "lora_A" in name or "lora_B" in name:
+          print(f'require grad for {name}')
           param.requires_grad = True
       # Init parameters
       for module in self.gpt.modules():
@@ -73,6 +74,7 @@ class ParaphraseGPT(nn.Module):
       # Train reft parameteres
       for name, param in self.gpt.named_parameters():
         if "reft" in name:
+          print(f'require grad for {name}')
           param.requires_grad = True
     elif args.use_reft and args.use_lora:
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True, use_reft=True)
@@ -83,10 +85,12 @@ class ParaphraseGPT(nn.Module):
       for name, param in self.gpt.named_parameters():
         print(name, param.shape)
         if "reft" in name:
+          print(f'require grad for {name}')
           param.requires_grad = True
       # Unfreeze Lora parameters
       for name, param in self.gpt.named_parameters():
         if "lora_A" in name or "lora_B" in name:
+          print(f'require grad for {name}')
           param.requires_grad = True
       # Init parameters
       for module in self.gpt.modules():
