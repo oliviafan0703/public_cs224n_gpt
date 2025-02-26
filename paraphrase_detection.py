@@ -162,7 +162,9 @@ def train(args):
   model = model.to(device)
 
   lr = args.lr
-  optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
+  # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
+  from torch import optim
+  optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-6)
   best_dev_acc = 0
 
   correct_predictions = 0 
