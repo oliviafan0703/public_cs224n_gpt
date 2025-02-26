@@ -179,7 +179,7 @@ def train(args):
 
       # The labels are 1 for paraphrases and 0 for non-paraphrases.
       labels = torch.where(labels == 8505, torch.tensor(1, device=labels.device), torch.tensor(0, device=labels.device))
-      mapped_labels = (labels == 8505).long() 
+      mapped_labels = labels.long()
 
       # Compute the loss, gradients, and update the model's parameters.
       optimizer.zero_grad()
