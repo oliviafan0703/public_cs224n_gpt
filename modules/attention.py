@@ -91,7 +91,8 @@ class CausalSelfAttention(nn.Module):
     context = rearrange(context, "b h t d -> b t (h d)")
 
     # Apply ReFT here if enabled
-    context = self.apply_reft(context)
+    # TODO: to debug later
+    # context = self.apply_reft(context)
 
     return context
 
