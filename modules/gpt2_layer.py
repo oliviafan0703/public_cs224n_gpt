@@ -9,12 +9,12 @@ class ReFTBlock(nn.Module):
         super().__init__()
         self.note = note
         self.rank = rank
-        self.A = nn.Parameter(torch.randn(hidden_size, rank))
-        self.B = nn.Parameter(torch.zeros(rank, hidden_size))
+        self.reft_A = nn.Parameter(torch.randn(hidden_size, rank))
+        self.reft_B = nn.Parameter(torch.zeros(rank, hidden_size))
         self.scaling = 1.0 / rank ** 0.5
 
     def forward(self, x):
-        delta = torch.matmul(torch.matmul(x, self.A), self.B) * self.scaling
+        delta = torch.matmul(torch.matmul(x, self.reft_A), self.reft_B) * self.scaling
         return x + delta
 
 class GPT2Layer(nn.Module):

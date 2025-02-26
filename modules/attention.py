@@ -13,14 +13,14 @@ class LoRALayer(nn.Module):
     self.weight = nn.Parameter(torch.zeros(out_dim, in_dim), requires_grad=False)
     self.bias = nn.Parameter(torch.zeros(out_dim), requires_grad=False)
     # TRAINABLE: LoRA parameters
-    self.A = nn.Parameter(torch.randn(out_dim, rank))  # Low-rank matrix A
-    self.B = nn.Parameter(torch.zeros(rank, in_dim))  # Low-rank matrix B
+    self.lora_A = nn.Parameter(torch.randn(out_dim, rank))  # Low-rank matrix A
+    self.lora_B = nn.Parameter(torch.zeros(rank, in_dim))  # Low-rank matrix B
     # Scaling factor
     self.scaling = alpha / rank
 
   def forward(self, x):
     # Output = Wx + (B*A)x * scaling
-    return F.linear(x, self.weight + (self.A @ self.B).T * self.scaling, self.bias)
+    return F.linear(x, self.weight + (self.lora_A @ self.lora_B).T * self.scaling, self.bias)
 
 class CausalSelfAttention(nn.Module):
   def __init__(self, config):

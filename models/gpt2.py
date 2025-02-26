@@ -161,10 +161,10 @@ class GPT2Model(GPTPreTrainedModel):
 
       # Init the values for ReFT if defined
       if use_reft:
-        nn.init.normal_(l.reft_attn.A, mean=0, std=0.02)
-        nn.init.zeros_(l.reft_attn.B)
-        nn.init.normal_(l.reft_ffn.A, mean=0, std=0.02)
-        nn.init.zeros_(l.reft_ffn.B)
+        nn.init.normal_(l.reft_attn.reft_A, mean=0, std=0.02)
+        nn.init.zeros_(l.reft_attn.reft_B)
+        nn.init.normal_(l.reft_ffn.reft_A, mean=0, std=0.02)
+        nn.init.zeros_(l.reft_ffn.reft_B)
 
     # Remap the final layer norm values.
     our_model.final_layer_norm.weight.data = gpt_model.state_dict()['ln_f.weight']

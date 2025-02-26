@@ -51,21 +51,21 @@ class ParaphraseGPT(nn.Module):
 
   def __init__(self, args):
     super().__init__()
-    if args.use_lora:
+    if args.use_lora and not args.use_reft:
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True)
       # Freeze pretained parameters
       for param in self.gpt.parameters():
         param.requires_grad = False
       # Unfreeze Lora parameters
       for name, param in self.gpt.named_parameters():
-        if "A" in name or "B" in name:
+        if "lora_A" in name or "lora_B" in name:
           param.requires_grad = True
       # Init parameters
       for module in self.gpt.modules():
         if isinstance(module, LoRALayer):
-          nn.init.normal_(module.A, mean=0, std=0.02)
-          nn.init.zeros_(module.B)
-    elif args.use_reft:
+          nn.init.normal_(module.lora_A, mean=0, std=0.02)
+          nn.init.zeros_(module.lora_B)
+    elif args.use_reft and not args.use_lora:
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_reft=True)
       # Freeze all parameters
       for param in self.gpt.parameters():
@@ -74,6 +74,25 @@ class ParaphraseGPT(nn.Module):
       for name, param in self.gpt.named_parameters():
         if "reft" in name:
           param.requires_grad = True
+    elif args.use_reft and args.use_lora:
+      self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True, use_reft=True)
+      # Freeze all parameters
+      for param in self.gpt.parameters():
+        param.requires_grad = False
+      # Train reft parameteres
+      for name, param in self.gpt.named_parameters():
+        print(name, param.shape)
+        if "reft" in name:
+          param.requires_grad = True
+      # Unfreeze Lora parameters
+      for name, param in self.gpt.named_parameters():
+        if "lora_A" in name or "lora_B" in name:
+          param.requires_grad = True
+      # Init parameters
+      for module in self.gpt.modules():
+        if isinstance(module, LoRALayer):
+          nn.init.normal_(module.lora_A, mean=0, std=0.02)
+          nn.init.zeros_(module.lora_B)
     else:
         self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
         # By default, fine-tune the full model.
@@ -242,8 +261,8 @@ def get_args():
   args = parser.parse_args()
   print(f'use_lora: {args.use_lora}')
   print(f'use_reft: {args.use_reft}')
-  # Because of the parameters to be freezed are different, we shouldn't use lora and reft together for now
-  assert not args.use_lora & args.use_reft
+  # # Because of the parameters to be freezed are different, we shouldn't use lora and reft together for now
+  # assert not args.use_lora & args.use_reft
   return args
 
 
