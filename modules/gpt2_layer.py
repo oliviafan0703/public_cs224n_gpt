@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from modules.attention import CausalSelfAttention
 
 class ReFTBlock(nn.Module):
-    def __init__(self, hidden_size, rank=64, note="none"):
+    def __init__(self, hidden_size, rank=256, note="none"):
         super().__init__()
         self.note = note
         self.rank = rank
