@@ -17,6 +17,24 @@ class ReFTBlock(nn.Module):
         delta = torch.matmul(torch.matmul(x, self.reft_A), self.reft_B) * self.scaling
         return x + delta
 
+class SwiGLU(nn.Module):
+    def __init__(self, hidden_size, intermediate_size):
+        super().__init__()
+        self.swiglu_intermediate_size = 2048
+        self.swiglu_intermediate_size = intermediate_size * 2 // 3  # 3072 -> 2048
+        # print(f'hidden_size: {hidden_size}, intermediate_size: {intermediate_size}, self.swiglu_intermediate_size: {self.swiglu_intermediate_size}')
+        self.gate_proj = nn.Linear(hidden_size, 2 * self.swiglu_intermediate_size)
+        self.out_proj = nn.Linear(self.swiglu_intermediate_size, hidden_size)
+
+    def forward(self, x):
+        projected = self.gate_proj(x)  # [bs, seq_len, 2*swiglu_intermediate_size]
+        gate, value = torch.chunk(projected, 2, dim=-1)
+        swish_gate = F.silu(gate)
+        activated = swish_gate * value  # [bs, seq_len, swiglu_intermediate_size]
+        # print(f'projected.shape: {projected.shape}, gate.shape: {gate.shape}, x.shape: {x.shape}, activated.shape: {activated.shape}')
+        return self.out_proj(activated)  # [bs, seq_len, hidden_size]
+
+
 class GPT2Layer(nn.Module):
   def __init__(self, config):
     super().__init__()
@@ -28,10 +46,16 @@ class GPT2Layer(nn.Module):
     self.attention_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
     self.attention_dropout = nn.Dropout(config.hidden_dropout_prob)
     # Feed forward.
-    self.interm_dense = nn.Linear(config.hidden_size, config.intermediate_size)
-    self.interm_af = F.gelu
-    # Add-norm for feed forward.
-    self.out_dense = nn.Linear(config.intermediate_size, config.hidden_size)
+    if config.use_swiglu:
+        self.swiglu = SwiGLU(
+            hidden_size=config.hidden_size,
+            intermediate_size=config.intermediate_size
+        )
+    else:
+        self.interm_dense = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.interm_af = F.gelu
+        # Add-norm for feed forward.
+        self.out_dense = nn.Linear(config.intermediate_size, config.hidden_size)
     self.out_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
     self.out_dropout = nn.Dropout(config.hidden_dropout_prob)
     # reft layers
@@ -77,8 +101,11 @@ class GPT2Layer(nn.Module):
     
     # Pre-LN
     ffn_norm = self.out_layer_norm(hidden_states)
-    ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
-    ffn_output = self.out_dense(ffn_output)
+    if self.config.use_swiglu:
+        ffn_output = self.swiglu(ffn_norm)
+    else:
+        ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
+        ffn_output = self.out_dense(ffn_output)
     if self.config.use_reft:
       ffn_output = self.reft_ffn(ffn_output)
     # direct connect

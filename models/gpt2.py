@@ -121,11 +121,11 @@ class GPT2Model(GPTPreTrainedModel):
 
 
   @classmethod
-  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False, use_reft=False):
+  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False, use_reft=False, use_swiglu=False):
     gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
     our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l, num_attention_heads=num_heads,
                                      intermediate_size=d*3,
-                                     use_lora=use_lora, use_reft=use_reft)).eval()
+                                     use_lora=use_lora, use_reft=use_reft, use_swiglu=use_swiglu)).eval()
 
     # Load word and positional embeddings.
     our_model.word_embedding.load_state_dict(gpt_model.wte.state_dict())
@@ -149,11 +149,42 @@ class GPT2Model(GPTPreTrainedModel):
       l.attention_layer_norm.weight.data = gpt_model.state_dict()[f'h.{i}.ln_1.weight']
       l.attention_layer_norm.bias.data = gpt_model.state_dict()[f'h.{i}.ln_1.bias']
 
-      # Remap post-attention MLP layers.
-      l.interm_dense.weight.data = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.weight'].T
-      l.interm_dense.bias.data = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.bias']
-      l.out_dense.weight.data = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.weight'].T
-      l.out_dense.bias.data = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.bias']
+      # When we change to swiglu, we need to change to a different initialization method
+      if use_swiglu:
+        print(f'initializing swiglu parameters with original weights for layer {i}')
+        # Get the original weight from the pre-trained model
+        c_fc_weight = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.weight']  # [768, 3072]
+        c_proj_weight = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.weight']  # [3072, 768]
+        # Use the same calculation as in your SwiGLU class (intermediate_size = d*3 = 2304)
+        swiglu_intermediate_size = (d * 3) * 2 // 3  # 2304 * 2 // 3 = 1536
+        # Make sure there's enough data in the original weights to extract what we need
+        if c_fc_weight.shape[1] < swiglu_intermediate_size * 2:
+          # You may need to handle this case - perhaps with padding or truncation
+          print(
+            f"Warning: Original weight dimension {c_fc_weight.shape[1]} is smaller than required {swiglu_intermediate_size * 2}")
+        # split the initial value (may need to adjust slicing if dimensions don't match exactly)
+        gate_weight = c_fc_weight[:, :swiglu_intermediate_size]  # [768, 1536]
+        value_weight = c_fc_weight[:, swiglu_intermediate_size: 2 * swiglu_intermediate_size]  # [768, 1536]
+        # combine weights
+        swiglu_gate_weight = torch.cat([gate_weight, value_weight], dim=1)  # [768, 3072]
+        l.swiglu.gate_proj.weight.data = swiglu_gate_weight.T  # [3072, 768]
+        # change output layer
+        l.swiglu.out_proj.weight.data = c_proj_weight[:swiglu_intermediate_size, :].T  # [768, 1536]
+        # Don't forget to update biases if needed
+        if 'c_fc.bias' in gpt_model.state_dict():
+          c_fc_bias = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.bias']
+          gate_bias = c_fc_bias[:swiglu_intermediate_size]
+          value_bias = c_fc_bias[swiglu_intermediate_size:2 * swiglu_intermediate_size]
+          swiglu_gate_bias = torch.cat([gate_bias, value_bias])
+          l.swiglu.gate_proj.bias.data = swiglu_gate_bias
+        if 'c_proj.bias' in gpt_model.state_dict():
+          l.swiglu.out_proj.bias.data = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.bias']
+      else:
+        # Remap post-attention MLP layers.
+        l.interm_dense.weight.data = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.weight'].T
+        l.interm_dense.bias.data = gpt_model.state_dict()[f'h.{i}.mlp.c_fc.bias']
+        l.out_dense.weight.data = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.weight'].T
+        l.out_dense.bias.data = gpt_model.state_dict()[f'h.{i}.mlp.c_proj.bias']
 
       # Remap second layer norm weights.
       l.out_layer_norm.weight.data = gpt_model.state_dict()[f'h.{i}.ln_2.weight']

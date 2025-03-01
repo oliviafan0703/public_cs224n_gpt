@@ -209,6 +209,7 @@ class GPT2Config(PretrainedConfig):
           use_cache=True,
           use_lora=False,
           use_reft=False,
+          use_swiglu=False,
           **kwargs
   ):
     super().__init__(pad_token_id=pad_token_id, **kwargs)
@@ -230,6 +231,7 @@ class GPT2Config(PretrainedConfig):
     self.use_cache = use_cache
     self.use_lora = use_lora
     self.use_reft = use_reft
+    self.use_swiglu = use_swiglu
 
 
 

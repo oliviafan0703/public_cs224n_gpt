@@ -98,7 +98,7 @@ class ParaphraseGPT(nn.Module):
           nn.init.normal_(module.lora_A, mean=0, std=0.02)
           nn.init.zeros_(module.lora_B)
     else:
-        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads)
+        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_swiglu=args.use_swiglu)
         # By default, fine-tune the full model.
         for param in self.gpt.parameters():
           param.requires_grad = True
@@ -268,6 +268,7 @@ def get_args():
   parser.add_argument("--epochs", type=int, default=10)
   parser.add_argument("--use_lora", action='store_true')
   parser.add_argument("--use_reft", action='store_true')
+  parser.add_argument("--use_swiglu", action='store_true')
   parser.add_argument("--use_gpu", action='store_true')
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
@@ -279,6 +280,7 @@ def get_args():
   args = parser.parse_args()
   print(f'use_lora: {args.use_lora}')
   print(f'use_reft: {args.use_reft}')
+  print(f'use_swiglu: {args.use_swiglu}')
   # # Because of the parameters to be freezed are different, we shouldn't use lora and reft together for now
   # assert not args.use_lora & args.use_reft
   return args
