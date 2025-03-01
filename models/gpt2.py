@@ -192,9 +192,11 @@ class GPT2Model(GPTPreTrainedModel):
 
       # Init the values for ReFT if defined
       if use_reft:
-        nn.init.normal_(l.reft_attn.reft_A, mean=0, std=0.02)
+        nn.init.kaiming_normal_(l.reft_attn.reft_A, mode='fan_in', nonlinearity='linear')
+        nn.init.kaiming_normal_(l.reft_ffn.reft_A, mode='fan_in', nonlinearity='linear')
+        # nn.init.normal_(l.reft_attn.reft_A, mean=0, std=0.02)
         nn.init.zeros_(l.reft_attn.reft_B)
-        nn.init.normal_(l.reft_ffn.reft_A, mean=0, std=0.02)
+        # nn.init.normal_(l.reft_ffn.reft_A, mean=0, std=0.02)
         nn.init.zeros_(l.reft_ffn.reft_B)
 
     # Remap the final layer norm values.

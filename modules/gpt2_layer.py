@@ -5,17 +5,17 @@ import torch.nn.functional as F
 from modules.attention import CausalSelfAttention
 
 class ReFTBlock(nn.Module):
-    def __init__(self, hidden_size, rank=8, note="none"):
+    def __init__(self, hidden_size, rank=256, note="none"):
         super().__init__()
         self.note = note
         self.rank = rank
         self.reft_A = nn.Parameter(torch.randn(hidden_size, rank))
         self.reft_B = nn.Parameter(torch.zeros(rank, hidden_size))
-        self.scaling = 1.0 / rank ** 0.5
+        self.scaling = nn.Parameter(torch.tensor(1.0))
 
     def forward(self, x):
         delta = torch.matmul(torch.matmul(x, self.reft_A), self.reft_B) * self.scaling
-        return x + delta
+        return x + delta + x * 0.1
 
 class SwiGLU(nn.Module):
     def __init__(self, hidden_size, intermediate_size):
