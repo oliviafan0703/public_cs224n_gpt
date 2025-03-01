@@ -14,6 +14,7 @@ trains and evaluates your ParaphraseGPT model and writes the required submission
 import argparse
 import random
 import torch
+import math
 
 import numpy as np
 import torch.nn.functional as F
@@ -55,7 +56,7 @@ class ParaphraseGPT(nn.Module):
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_lora=True)
       # Freeze pretained parameters
       for param in self.gpt.parameters():
-            param.requires_grad = False
+        param.requires_grad = False
       # Unfreeze Lora parameters
       for name, param in self.gpt.named_parameters():
         if "lora_A" in name or "lora_B" in name:
@@ -64,7 +65,7 @@ class ParaphraseGPT(nn.Module):
       # Init parameters
       for module in self.gpt.modules():
         if isinstance(module, LoRALayer):
-          nn.init.normal_(module.lora_A, mean=0, std=0.02)
+          nn.init.kaiming_uniform_(module.lora_A, a=math.sqrt(5))
           nn.init.zeros_(module.lora_B)
     elif args.use_reft and not args.use_lora:
       self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_reft=True)
