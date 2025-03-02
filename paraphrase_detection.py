@@ -196,7 +196,17 @@ def train(args):
   lr = args.lr
   # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
   from torch import optim
-  optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-6)
+  if args.use_muon_optimizer:
+    from muon import Muon
+    # Find ≥2D parameters in the body of the network -- these should be optimized by Muon
+    muon_params = [p for p in model.parameters() if p.ndim >= 2]
+    # Find everything else -- these should be optimized by AdamW
+    adamw_params = [p for p in model.parameters() if p.ndim < 2]
+    # Create the optimizers from both muon and adamw
+    optimizers = [Muon(muon_params, lr=0.02, momentum=0.95),
+                  optim.AdamW(adamw_params, lr=lr, weight_decay=1e-6)]
+  else:
+    optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-6)
   best_dev_acc = 0
 
   correct_predictions = 0 
@@ -234,12 +244,22 @@ def train(args):
       mapped_labels = labels.long()
 
       # Compute the loss, gradients, and update the model's parameters.
-      optimizer.zero_grad()
-      logits = model(b_ids, b_mask)
-      preds = torch.argmax(logits, dim=1)
-      loss = F.cross_entropy(logits, mapped_labels, reduction='mean')
-      loss.backward()
-      optimizer.step()
+      if args.use_muon_optimizer:
+        for optimizer in optimizers:
+          optimizer.zero_grad()
+        logits = model(b_ids, b_mask)
+        preds = torch.argmax(logits, dim=1)
+        loss = F.cross_entropy(logits, mapped_labels, reduction='mean')
+        loss.backward()
+        for optimizer in optimizers:
+          optimizer.step()
+      else:
+        optimizer.zero_grad()
+        logits = model(b_ids, b_mask)
+        preds = torch.argmax(logits, dim=1)
+        loss = F.cross_entropy(logits, mapped_labels, reduction='mean')
+        loss.backward()
+        optimizer.step()
 
       train_loss += loss.item()
       num_batches += 1
@@ -321,6 +341,7 @@ def get_args():
   parser.add_argument("--early_dropout_rate", type=float, help="early dropout rate", default=0.3)
   parser.add_argument("--end_dropout_rate", type=float, help="end dropout rate", default=0.1)
   parser.add_argument("--stop_dropout_rate_epoch_ratio", type=float, help="end dropout rate", default=0.8)
+  parser.add_argument("--use_muon_optimizer", action='store_true')
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
   parser.add_argument("--lr", type=float, help="learning rate", default=1e-5)
@@ -332,6 +353,7 @@ def get_args():
   print(f'use_lora: {args.use_lora}')
   print(f'use_reft: {args.use_reft}')
   print(f'use_swiglu: {args.use_swiglu}')
+  print(f'use_muon_optimizer: {args.use_muon_optimizer}')
   print(f'dropout schedule: use_early_dropout {args.use_early_dropout}, early_dropout_rate {args.early_dropout_rate}, '
         f'end_dropout_rate {args.end_dropout_rate},stop_dropout_rate_epoch_ratio {args.stop_dropout_rate_epoch_ratio}')
   if args.use_early_dropout:
