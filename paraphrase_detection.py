@@ -68,7 +68,7 @@ def count_trainable_params(model):
   print(f"ReFT Trainable Params: {reft_params}")
   print(f"Total Trainable Params: {lora_params + reft_params}")
   print(f"Total Non-Trainable Params: {non_trainable_params}")
-  print(f"Total Trainable Ratio: {(lora_params + reft_params)/(lora_params + reft_params + non_trainable_params)}")
+  print(f"Total Trainable Ratio: {(lora_params + reft_params)/(1 + lora_params + reft_params + non_trainable_params)}")
   return lora_params, reft_params, non_trainable_params
 
 class ParaphraseGPT(nn.Module):
