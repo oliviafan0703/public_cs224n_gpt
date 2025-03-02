@@ -20,7 +20,7 @@ class ReFTBlock(nn.Module):
 class SwiGLU(nn.Module):
     def __init__(self, hidden_size, intermediate_size):
         super().__init__()
-        self.swiglu_intermediate_size = 2048
+        # self.swiglu_intermediate_size = 2048
         self.swiglu_intermediate_size = intermediate_size * 2 // 3  # 3072 -> 2048
         # print(f'hidden_size: {hidden_size}, intermediate_size: {intermediate_size}, self.swiglu_intermediate_size: {self.swiglu_intermediate_size}')
         self.gate_proj = nn.Linear(hidden_size, 2 * self.swiglu_intermediate_size)

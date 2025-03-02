@@ -1,4 +1,5 @@
 import torch
+import math
 from torch import nn
 from transformers import GPT2Model as OpenAIGPT2Model
 
@@ -165,6 +166,9 @@ class GPT2Model(GPTPreTrainedModel):
         # split the initial value (may need to adjust slicing if dimensions don't match exactly)
         gate_weight = c_fc_weight[:, :swiglu_intermediate_size]  # [768, 1536]
         value_weight = c_fc_weight[:, swiglu_intermediate_size: 2 * swiglu_intermediate_size]  # [768, 1536]
+        if True:
+          nn.init.normal_(gate_weight, mean=0.0, std=0.02 / math.sqrt(swiglu_intermediate_size))
+          nn.init.kaiming_normal_(value_weight, mode='fan_in', nonlinearity='linear')
         # combine weights
         swiglu_gate_weight = torch.cat([gate_weight, value_weight], dim=1)  # [768, 3072]
         l.swiglu.gate_proj.weight.data = swiglu_gate_weight.T  # [3072, 768]
