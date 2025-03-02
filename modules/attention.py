@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 
 class LoRALayer(nn.Module):
-  def __init__(self, in_dim, out_dim, rank=1024, alpha=2048):
+  def __init__(self, in_dim, out_dim, rank=2048, alpha=4096):
     super().__init__()
     self.rank = rank
     self.alpha = alpha
@@ -37,11 +37,11 @@ class CausalSelfAttention(nn.Module):
     if config.use_lora:
       self.query = LoRALayer(config.hidden_size, self.all_head_size)
       self.key = LoRALayer(config.hidden_size, self.all_head_size)
-      self.value = LoRALayer(config.hidden_size, self.all_head_size)
+      # self.value = LoRALayer(config.hidden_size, self.all_head_size)
     else:
       self.query = nn.Linear(config.hidden_size, self.all_head_size)
       self.key = nn.Linear(config.hidden_size, self.all_head_size)
-      self.value = nn.Linear(config.hidden_size, self.all_head_size)
+    self.value = nn.Linear(config.hidden_size, self.all_head_size)
     # This dropout is applied to normalized attention scores following the original
     # implementation of transformer. Although it is a bit unusual, we empirically
     # observe that it yields better performance.

@@ -47,6 +47,30 @@ def seed_everything(seed=11711):
   torch.backends.cudnn.deterministic = True
 
 
+# Compute the parameters trainable
+def count_trainable_params(model):
+  lora_params = 0
+  reft_params = 0
+  non_trainable_params = 0
+
+  for name, param in model.named_parameters():
+    if param.requires_grad:
+      # 统计 LoRA 参数
+      if 'lora_A' in name or 'lora_B' in name:
+        lora_params += param.numel()
+      # 统计 ReFT 参数
+      elif 'reft_A' in name or 'reft_B' in name:
+        reft_params += param.numel()
+    else:
+      non_trainable_params += param.numel()
+
+  print(f"LoRA Trainable Params: {lora_params}")
+  print(f"ReFT Trainable Params: {reft_params}")
+  print(f"Total Trainable Params: {lora_params + reft_params}")
+  print(f"Total Non-Trainable Params: {non_trainable_params}")
+  print(f"Total Trainable Ratio: {(lora_params + reft_params)/(lora_params + reft_params + non_trainable_params)}")
+  return lora_params, reft_params, non_trainable_params
+
 class ParaphraseGPT(nn.Module):
   """Your GPT-2 Model designed for paraphrase detection."""
 
@@ -104,6 +128,7 @@ class ParaphraseGPT(nn.Module):
         for param in self.gpt.parameters():
           param.requires_grad = True
     self.paraphrase_detection_head = nn.Linear(args.d, 2)  # Paraphrase detection has two outputs: 1 (yes) or 0 (no).
+    count_trainable_params(self.gpt)
 
   def forward(self, input_ids, attention_mask):
     """
