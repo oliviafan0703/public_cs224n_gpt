@@ -354,6 +354,8 @@ def get_args():
   parser.add_argument("--use_lora", action='store_true')
   parser.add_argument("--use_reft", action='store_true')
   parser.add_argument("--use_swiglu", action='store_true')
+  parser.add_argument("--use_relu2", action='store_true')
+  parser.add_argument("--use_laplace", action='store_true')
   parser.add_argument("--use_gpu", action='store_true')
   parser.add_argument("--use_early_dropout", action='store_true')
   parser.add_argument("--early_dropout_rate", type=float, help="early dropout rate", default=0.3)
@@ -373,6 +375,8 @@ def get_args():
   print(f'use_lora: {args.use_lora}')
   print(f'use_reft: {args.use_reft}')
   print(f'use_swiglu: {args.use_swiglu}')
+  print(f'use_relu2: {args.use_relu2}')
+  print(f'use_laplace: {args.use_laplace}')
   print(f'use_muon_optimizer: {args.use_muon_optimizer}')
   print(f'dropout schedule: use_early_dropout {args.use_early_dropout}, early_dropout_rate {args.early_dropout_rate}, '
         f'end_dropout_rate {args.end_dropout_rate},stop_dropout_rate_epoch_ratio {args.stop_dropout_rate_epoch_ratio}')

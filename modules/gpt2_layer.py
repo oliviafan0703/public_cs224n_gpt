@@ -1,5 +1,6 @@
 from torch import nn
 import torch
+import math
 import torch.nn.functional as F
 
 from modules.attention import CausalSelfAttention
@@ -34,6 +35,27 @@ class SwiGLU(nn.Module):
         # print(f'projected.shape: {projected.shape}, gate.shape: {gate.shape}, x.shape: {x.shape}, activated.shape: {activated.shape}')
         return self.out_proj(activated)  # [bs, seq_len, hidden_size]
 
+class LaplaceActivation(nn.Module):
+    """
+    Applies elementwise activation based on Laplace function, introduced in MEGA as an attention activation. See
+    https://arxiv.org/abs/2209.10655
+
+    Inspired by squared relu, but with bounded range and gradient for better stability
+    """
+
+    def forward(self, input, mu=0.707107, sigma=0.282095):
+        input = (input - mu).div(sigma * math.sqrt(2.0))
+        return 0.5 * (1.0 + torch.erf(input))
+
+class ReLUSquaredActivation(nn.Module):
+    """
+    Applies the relu^2 activation introduced in https://arxiv.org/abs/2109.08668v2
+    """
+
+    def forward(self, input):
+        relu_applied = nn.functional.relu(input)
+        squared = torch.square(relu_applied)
+        return squared
 
 class GPT2Layer(nn.Module):
   def __init__(self, config):
@@ -53,7 +75,12 @@ class GPT2Layer(nn.Module):
         )
     else:
         self.interm_dense = nn.Linear(config.hidden_size, config.intermediate_size)
-        self.interm_af = F.gelu
+        if config.use_relu2:
+          self.interm_af = ReLUSquaredActivation
+        elif config.use_laplace:
+          self.interm_af = LaplaceActivation
+        else:
+          self.interm_af = F.gelu
         # Add-norm for feed forward.
         self.out_dense = nn.Linear(config.intermediate_size, config.hidden_size)
     self.out_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
@@ -104,7 +131,7 @@ class GPT2Layer(nn.Module):
     if self.config.use_swiglu:
         ffn_output = self.swiglu(ffn_norm)
     else:
-        ffn_output = self.interm_af(self.interm_dense(ffn_norm))  # GELU
+        ffn_output = self.interm_af(self.interm_dense(ffn_norm))
         ffn_output = self.out_dense(ffn_output)
     if self.config.use_reft:
       ffn_output = self.reft_ffn(ffn_output)

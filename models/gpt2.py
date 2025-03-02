@@ -122,11 +122,13 @@ class GPT2Model(GPTPreTrainedModel):
 
 
   @classmethod
-  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False, use_reft=False, use_swiglu=False):
+  def from_pretrained(cls, model='gpt2', d=768, l=12, num_heads=12, use_lora=False, use_reft=False, use_swiglu=False,
+                      use_relu2=False, use_laplace=False):
     gpt_model = OpenAIGPT2Model.from_pretrained(model).eval()
     our_model = GPT2Model(GPT2Config(hidden_size=d, num_hidden_layers=l, num_attention_heads=num_heads,
                                      intermediate_size=d*3,
-                                     use_lora=use_lora, use_reft=use_reft, use_swiglu=use_swiglu)).eval()
+                                     use_lora=use_lora, use_reft=use_reft, use_swiglu=use_swiglu,
+                                     use_relu2=use_relu2, use_laplace=use_laplace)).eval()
 
     # Load word and positional embeddings.
     our_model.word_embedding.load_state_dict(gpt_model.wte.state_dict())
