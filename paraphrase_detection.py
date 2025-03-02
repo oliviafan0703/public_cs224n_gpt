@@ -197,14 +197,32 @@ def train(args):
   # optimizer = AdamW(model.parameters(), lr=lr, weight_decay=0.)
   from torch import optim
   if args.use_muon_optimizer:
+    # Make the training distributed
+    import torch.distributed as dist
+    dist.init_process_group(
+      backend='nccl',
+      init_method='env://',
+      world_size=args.world_size,
+      rank=args.local_rank
+    )
     from muon import Muon
     # Find ≥2D parameters in the body of the network -- these should be optimized by Muon
-    muon_params = [p for p in model.parameters() if p.ndim >= 2]
+    muon_params = []
+    adamw_params = []
+    input_count = 0
+    for name, p in model.named_parameters():
+      if p.ndim >= 2 and 'attention' in name:
+        print(f'input_count: {input_count}, name: {name}, shape={p.shape}')
+        muon_params.append(p)
+        input_count += 1
+      else:
+        adamw_params.append(p)
     # Find everything else -- these should be optimized by AdamW
-    adamw_params = [p for p in model.parameters() if p.ndim < 2]
+    # adamw_params = [p for p in model.parameters() if p.ndim < 2]
     # Create the optimizers from both muon and adamw
     optimizers = [Muon(muon_params, lr=0.02, momentum=0.95),
                   optim.AdamW(adamw_params, lr=lr, weight_decay=1e-6)]
+    print(f"Muon Parameters: {len(muon_params) }")
   else:
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-6)
   best_dev_acc = 0
@@ -342,6 +360,8 @@ def get_args():
   parser.add_argument("--end_dropout_rate", type=float, help="end dropout rate", default=0.1)
   parser.add_argument("--stop_dropout_rate_epoch_ratio", type=float, help="end dropout rate", default=0.8)
   parser.add_argument("--use_muon_optimizer", action='store_true')
+  parser.add_argument("--local-rank", type=int, default=0, help='Local rank for distributed training')
+  parser.add_argument("--world-size", type=int, default=1, help='total num of GPUs')
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
   parser.add_argument("--lr", type=float, help="learning rate", default=1e-5)
