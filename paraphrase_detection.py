@@ -123,7 +123,8 @@ class ParaphraseGPT(nn.Module):
           nn.init.normal_(module.lora_A, mean=0, std=0.02)
           nn.init.zeros_(module.lora_B)
     else:
-        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads, use_swiglu=args.use_swiglu)
+        self.gpt = GPT2Model.from_pretrained(model=args.model_size, d=args.d, l=args.l, num_heads=args.num_heads,
+                                             use_swiglu=args.use_swiglu, use_relu2=args.use_relu2, use_laplace=args.use_laplace)
         # By default, fine-tune the full model.
         for param in self.gpt.parameters():
           param.requires_grad = True
@@ -384,6 +385,9 @@ def get_args():
     assert args.early_dropout_rate >= 0
     assert args.end_dropout_rate >= 0
     assert args.stop_dropout_rate_epoch_ratio >= 0
+  if args.use_lora or args.use_reft:
+    # when using lora or reft, we don't retrain the prev model, so we will not change to a new activation function
+    assert not args.use_relu2 | args.use_laplace
   return args
 
 

@@ -76,10 +76,13 @@ class GPT2Layer(nn.Module):
     else:
         self.interm_dense = nn.Linear(config.hidden_size, config.intermediate_size)
         if config.use_relu2:
+          print(f'using ReLUSquaredActivation')
           self.interm_af = ReLUSquaredActivation
         elif config.use_laplace:
+          print(f'using LaplaceActivation')
           self.interm_af = LaplaceActivation
         else:
+          print(f'using gelu')
           self.interm_af = F.gelu
         # Add-norm for feed forward.
         self.out_dense = nn.Linear(config.intermediate_size, config.hidden_size)
