@@ -167,6 +167,12 @@ def save_model(model, optimizer, args, filepath):
   torch.save(save_info, filepath)
   print(f"save the model to {filepath}")
 
+# The function that we use to set the dropout path
+def set_dropout_rate(model, p):
+  print(f'setting the dropout rate to {p} for the following training')
+  for module in model.modules():
+    if isinstance(module, nn.Dropout):
+      module.p = p
 
 def train(args):
   """Train GPT-2 for paraphrase detection on the Quora dataset."""
@@ -197,7 +203,22 @@ def train(args):
   total_predictions = 0
 
   # Run for the specified number of epochs.
+  print(f'num epochs to train: {args.epochs}')
   for epoch in range(args.epochs):
+    print(f'current epoch: {epoch}')
+    if args.use_early_dropout:
+      stop_dropout_rate_epoch = int(args.stop_dropout_rate_epoch_ratio * args.epochs)
+      current_dropout_rate_to_use = max(0, args.end_dropout_rate + (1 - epoch / stop_dropout_rate_epoch) * (args.early_dropout_rate - args.end_dropout_rate))
+      # Print debug info
+      print(f'use_early_dropout, stop_dropout_rate_epoch_ratio: {args.stop_dropout_rate_epoch_ratio}, '
+            f'stop_dropout_rate_epoch: {stop_dropout_rate_epoch}, epoch: {epoch}, early_dropout_rate: {args.early_dropout_rate}, '
+            f'end_dropout_rate: {args.end_dropout_rate}, current_dropout_rate_to_use: {current_dropout_rate_to_use}')
+      if epoch < stop_dropout_rate_epoch:
+        print(f'setting dropout rate {current_dropout_rate_to_use}')
+        set_dropout_rate(model, current_dropout_rate_to_use)  # set dropout value
+      else:
+        print(f'setting dropout rate {args.end_dropout_rate}')
+        set_dropout_rate(model, args.end_dropout_rate)        # end dropout value
     model.train()
     train_loss = 0
     num_batches = 0
@@ -296,6 +317,10 @@ def get_args():
   parser.add_argument("--use_reft", action='store_true')
   parser.add_argument("--use_swiglu", action='store_true')
   parser.add_argument("--use_gpu", action='store_true')
+  parser.add_argument("--use_early_dropout", action='store_true')
+  parser.add_argument("--early_dropout_rate", type=float, help="early dropout rate", default=0.3)
+  parser.add_argument("--end_dropout_rate", type=float, help="end dropout rate", default=0.1)
+  parser.add_argument("--stop_dropout_rate_epoch_ratio", type=float, help="end dropout rate", default=0.8)
 
   parser.add_argument("--batch_size", help='sst: 64, cfimdb: 8 can fit a 12GB GPU', type=int, default=8)
   parser.add_argument("--lr", type=float, help="learning rate", default=1e-5)
@@ -307,8 +332,12 @@ def get_args():
   print(f'use_lora: {args.use_lora}')
   print(f'use_reft: {args.use_reft}')
   print(f'use_swiglu: {args.use_swiglu}')
-  # # Because of the parameters to be freezed are different, we shouldn't use lora and reft together for now
-  # assert not args.use_lora & args.use_reft
+  print(f'dropout schedule: use_early_dropout {args.use_early_dropout}, early_dropout_rate {args.early_dropout_rate}, '
+        f'end_dropout_rate {args.end_dropout_rate},stop_dropout_rate_epoch_ratio {args.stop_dropout_rate_epoch_ratio}')
+  if args.use_early_dropout:
+    assert args.early_dropout_rate >= 0
+    assert args.end_dropout_rate >= 0
+    assert args.stop_dropout_rate_epoch_ratio >= 0
   return args
 
 
