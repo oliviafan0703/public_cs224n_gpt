@@ -118,6 +118,12 @@ class SonnetGPT(nn.Module):
       )
 
     generated_output = self.tokenizer.decode(token_ids[0].cpu().numpy().tolist())[3:]
+    # Ensure proper sonnet formatting (Can be delete later)
+    sonnet_lines = generated_output.split("\n")
+    if len(sonnet_lines) < 14:
+        print("Warning: Sonnet too short. Padding with empty lines.")
+        while len(sonnet_lines) < 14:
+            sonnet_lines.append("")
     return token_ids, generated_output
 
 
