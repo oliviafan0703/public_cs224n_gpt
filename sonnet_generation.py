@@ -61,7 +61,12 @@ class SonnetGPT(nn.Module):
     not just the distribution over next tokens for the last token!
     """
     ### YOUR CODE HERE
-    raise NotImplementedError
+    hidden_states = self.gpt(input_ids, attention_mask)
+    last_hidden_state = hidden_states["last_hidden_state"]
+    logits = torch.matmul(last_hidden_state, self.gpt.word_embedding.weight.T)
+
+    return logits
+
 
 
   def get_device(self):
