@@ -63,7 +63,8 @@ class SonnetGPT(nn.Module):
     ### YOUR CODE HERE
     hidden_states = self.gpt(input_ids, attention_mask)
     last_hidden_state = hidden_states["last_hidden_state"]
-    logits = torch.matmul(last_hidden_state, self.gpt.word_embedding.weight.T)
+    logits = F.linear(last_hidden_state, self.gpt.word_embedding.weight)
+    logits = self.gpt.hidden_state_to_token(last_hidden_state)
 
     return logits
 
