@@ -5,7 +5,7 @@ from torch import nn
 import torch.nn.functional as F
 
 class LoRALayer(nn.Module):
-  def __init__(self, in_dim, out_dim, rank=2048, alpha=4096):
+  def __init__(self, in_dim, out_dim, rank=512, alpha=1024):
     super().__init__()
     self.rank = rank
     self.alpha = alpha
